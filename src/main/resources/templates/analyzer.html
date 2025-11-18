@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Analyzer - Spring Boot Analysis Tool</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            margin: 1rem 0;
+            min-height: 90vh;
+        }
+        
+        .header-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px 20px 0 0;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .analysis-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            border: none;
+        }
+        
+        .endpoint-badge {
+            font-size: 0.8rem;
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-weight: 600;
+        }
+        
+        .method-get { background: #d4edda; color: #155724; }
+        .method-post { background: #d1ecf1; color: #0c5460; }
+        .method-put { background: #fff3cd; color: #856404; }
+        .method-delete { background: #f8d7da; color: #721c24; }
+        .method-patch { background: #e2e3e5; color: #383d41; }
+        
+        .component-badge {
+            font-size: 0.8rem;
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+        
+        .comp-controller { background: #e1f5fe; color: #01579b; }
+        .comp-service { background: #f3e5f5; color: #4a148c; }
+        .comp-repository { background: #e8f5e8; color: #1b5e20; }
+        .comp-model { background: #fff3e0; color: #e65100; }
+        .comp-configuration { background: #fce4ec; color: #880e4f; }
+        
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 3rem;
+        }
+        
+        .section-header {
+            color: #667eea;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .btn-custom {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 25px;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .btn-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+            color: white;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .table-responsive {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .nav-pills .nav-link.active {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="container">
+            <div class="main-container">
+                <div class="header-section">
+                    <h1><i class="fas fa-microscope"></i> Project Analysis Dashboard</h1>
+                    <p id="projectInfo">Loading project information...</p>
+                    <button class="btn btn-light btn-sm" onclick="window.location.href='/'">
+                        <i class="fas fa-home"></i> Back to Home
+                    </button>
+                </div>
+                
+                <div class="loading-spinner" id="loadingSpinner">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3">Analyzing project structure...</p>
+                </div>
+                
+                <div class="container p-4" id="analysisResults" style="display: none;">
+                    <div class="stats-grid" id="statsGrid">
+                        <!-- Stats will be populated here -->
+                    </div>
+                    
+                    <ul class="nav nav-pills nav-justified mb-4" id="analysisTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="endpoints-tab" data-bs-toggle="pill" data-bs-target="#endpoints" type="button" role="tab">
+                                <i class="fas fa-link"></i> API Endpoints
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="components-tab" data-bs-toggle="pill" data-bs-target="#components" type="button" role="tab">
+                                <i class="fas fa-cubes"></i> Components
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="charts-tab" data-bs-toggle="pill" data-bs-target="#charts" type="button" role="tab">
+                                <i class="fas fa-chart-pie"></i> Visual Analytics
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="structure-tab" data-bs-toggle="pill" data-bs-target="#structure" type="button" role="tab">
+                                <i class="fas fa-sitemap"></i> Project Structure
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content" id="analysisTabContent">
+                        <!-- API Endpoints Tab -->
+                        <div class="tab-pane fade show active" id="endpoints" role="tabpanel">
+                            <div class="analysis-card">
+                                <h3 class="section-header">
+                                    <i class="fas fa-link"></i> API Endpoints
+                                    <span class="badge bg-primary" id="endpointCount">0</span>
+                                </h3>
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Method</th>
+                                                <th>Path</th>
+                                                <th>Controller</th>
+                                                <th>Method Name</th>
+                                                <th>Return Type</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="endpointsTableBody">
+                                            <!-- Endpoints will be populated here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Components Tab -->
+                        <div class="tab-pane fade" id="components" role="tabpanel">
+                            <div class="analysis-card">
+                                <h3 class="section-header">
+                                    <i class="fas fa-cubes"></i> Spring Components
+                                </h3>
+                                <div id="componentsContainer">
+                                    <!-- Components will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Charts Tab -->
+                        <div class="tab-pane fade" id="charts" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="analysis-card">
+                                        <h4>Component Distribution</h4>
+                                        <canvas id="componentChart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="analysis-card">
+                                        <h4>HTTP Methods Distribution</h4>
+                                        <canvas id="httpMethodChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="analysis-card">
+                                        <h4>Package Structure</h4>
+                                        <canvas id="packageChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Structure Tab -->
+                        <div class="tab-pane fade" id="structure" role="tabpanel">
+                            <div class="analysis-card">
+                                <h3 class="section-header">
+                                    <i class="fas fa-sitemap"></i> Project Structure
+                                </h3>
+                                <div id="projectStructure">
+                                    <!-- Project structure will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let analysisData = null;
+        
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const customPath = urlParams.get('path');
+            const selfAnalysis = urlParams.get('self');
+            
+            if (customPath) {
+                analyzeProject(customPath);
+            } else if (selfAnalysis) {
+                analyzeSelfProject();
+            } else {
+                // Default to self analysis
+                analyzeSelfProject();
+            }
+        };
+        
+        async function analyzeSelfProject() {
+            showLoading();
+            try {
+                const response = await fetch('/api/analyzer/analyze-self');
+                analysisData = await response.json();
+                displayAnalysis(analysisData);
+            } catch (error) {
+                showError('Error analyzing current project: ' + error.message);
+            }
+        }
+        
+        async function analyzeProject(projectPath) {
+            showLoading();
+            try {
+                const response = await fetch('/api/analyzer/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ projectPath: projectPath })
+                });
+                
+                if (response.ok) {
+                    analysisData = await response.json();
+                    displayAnalysis(analysisData);
+                } else {
+                    const error = await response.json();
+                    showError('Error: ' + (error.message || 'Failed to analyze project'));
+                }
+            } catch (error) {
+                showError('Error: ' + error.message);
+            }
+        }
+        
+        function showLoading() {
+            document.getElementById('loadingSpinner').style.display = 'block';
+            document.getElementById('analysisResults').style.display = 'none';
+        }
+        
+        function showError(message) {
+            document.getElementById('loadingSpinner').style.display = 'none';
+            document.getElementById('analysisResults').innerHTML = 
+                `<div class="alert alert-danger" role="alert">
+                    <i class="fas fa-exclamation-triangle"></i> ${message}
+                </div>`;
+            document.getElementById('analysisResults').style.display = 'block';
+        }
+        
+        function displayAnalysis(data) {
+            document.getElementById('loadingSpinner').style.display = 'none';
+            document.getElementById('analysisResults').style.display = 'block';
+            
+            // Update project info
+            document.getElementById('projectInfo').textContent = 
+                `Project: ${data.projectName} | Main Class: ${data.mainClass || 'Not found'}`;
+            
+            // Display stats
+            displayStats(data);
+            
+            // Display endpoints
+            displayEndpoints(data.apiEndpoints || []);
+            
+            // Display components
+            displayComponents(data);
+            
+            // Create charts
+            createCharts(data);
+            
+            // Display project structure
+            displayProjectStructure(data);
+        }
+        
+        function displayStats(data) {
+            const statsGrid = document.getElementById('statsGrid');
+            const stats = [
+                { label: 'Total Endpoints', value: data.totalEndpoints || 0, icon: 'fas fa-link' },
+                { label: 'Controllers', value: (data.controllers || []).length, icon: 'fas fa-layer-group' },
+                { label: 'Services', value: (data.services || []).length, icon: 'fas fa-cogs' },
+                { label: 'Repositories', value: (data.repositories || []).length, icon: 'fas fa-database' },
+                { label: 'Models', value: (data.models || []).length, icon: 'fas fa-cube' },
+                { label: 'Configurations', value: (data.configurations || []).length, icon: 'fas fa-sliders-h' }
+            ];
+            
+            statsGrid.innerHTML = stats.map(stat => 
+                `<div class="stat-card">
+                    <i class="${stat.icon}" style="font-size: 1.5rem; margin-bottom: 0.5rem;"></i>
+                    <span class="stat-number">${stat.value}</span>
+                    <span class="stat-label">${stat.label}</span>
+                </div>`
+            ).join('');
+        }
+        
+        function displayEndpoints(endpoints) {
+            const tableBody = document.getElementById('endpointsTableBody');
+            document.getElementById('endpointCount').textContent = endpoints.length;
+            
+            if (endpoints.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No endpoints found</td></tr>';
+                return;
+            }
+            
+            tableBody.innerHTML = endpoints.map(endpoint => 
+                `<tr>
+                    <td><span class="endpoint-badge method-${endpoint.httpMethod.toLowerCase()}">${endpoint.httpMethod}</span></td>
+                    <td><code>${endpoint.path}</code></td>
+                    <td><small class="text-muted">${endpoint.controllerClass}</small></td>
+                    <td><strong>${endpoint.methodName}</strong></td>
+                    <td><small>${endpoint.returnType}</small></td>
+                </tr>`
+            ).join('');
+        }
+        
+        function displayComponents(data) {
+            const container = document.getElementById('componentsContainer');
+            const componentTypes = [
+                { name: 'Controllers', data: data.controllers || [], class: 'comp-controller', icon: 'fas fa-layer-group' },
+                { name: 'Services', data: data.services || [], class: 'comp-service', icon: 'fas fa-cogs' },
+                { name: 'Repositories', data: data.repositories || [], class: 'comp-repository', icon: 'fas fa-database' },
+                { name: 'Models', data: data.models || [], class: 'comp-model', icon: 'fas fa-cube' },
+                { name: 'Configurations', data: data.configurations || [], class: 'comp-configuration', icon: 'fas fa-sliders-h' }
+            ];
+            
+            container.innerHTML = componentTypes.map(type => {
+                if (type.data.length === 0) return '';
+                
+                return `
+                    <div class="mb-4">
+                        <h5><i class="${type.icon}"></i> ${type.name} <span class="badge bg-secondary">${type.data.length}</span></h5>
+                        <div class="row">
+                            ${type.data.map(comp => 
+                                `<div class="col-md-6 col-lg-4 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-body">
+                                            <h6 class="card-title">
+                                                <span class="component-badge ${type.class}">${comp.componentType}</span>
+                                                ${comp.className}
+                                            </h6>
+                                            <p class="card-text">
+                                                <small class="text-muted">${comp.packageName}</small><br>
+                                                <strong>Methods:</strong> ${(comp.methods || []).length}<br>
+                                                <strong>Dependencies:</strong> ${(comp.dependencies || []).length}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>`
+                            ).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function createCharts(data) {
+            // Component distribution chart
+            const componentCounts = [
+                (data.controllers || []).length,
+                (data.services || []).length,
+                (data.repositories || []).length,
+                (data.models || []).length,
+                (data.configurations || []).length
+            ];
+            
+            new Chart(document.getElementById('componentChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Controllers', 'Services', 'Repositories', 'Models', 'Configurations'],
+                    datasets: [{
+                        data: componentCounts,
+                        backgroundColor: ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4ecdc4']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                        }
+                    }
+                }
+            });
+            
+            // HTTP methods distribution
+            const methodCounts = {};
+            (data.apiEndpoints || []).forEach(endpoint => {
+                methodCounts[endpoint.httpMethod] = (methodCounts[endpoint.httpMethod] || 0) + 1;
+            });
+            
+            new Chart(document.getElementById('httpMethodChart'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(methodCounts),
+                    datasets: [{
+                        label: 'Endpoint Count',
+                        data: Object.values(methodCounts),
+                        backgroundColor: ['#28a745', '#17a2b8', '#ffc107', '#dc3545', '#6c757d']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            // Package structure chart
+            const packageCounts = {};
+            Object.values(data.packageStructure || {}).forEach(pkg => {
+                const parts = pkg.split('.');
+                const rootPkg = parts.slice(0, Math.min(3, parts.length)).join('.');
+                packageCounts[rootPkg] = (packageCounts[rootPkg] || 0) + 1;
+            });
+            
+            new Chart(document.getElementById('packageChart'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(packageCounts),
+                    datasets: [{
+                        label: 'Classes',
+                        data: Object.values(packageCounts),
+                        backgroundColor: '#667eea'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        function displayProjectStructure(data) {
+            const container = document.getElementById('projectStructure');
+            
+            let html = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Package Structure</h5>
+                        <ul class="list-group">
+            `;
+            
+            const packages = new Set(Object.values(data.packageStructure || {}));
+            packages.forEach(pkg => {
+                html += `<li class="list-group-item">${pkg}</li>`;
+            });
+            
+            html += `
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Dependencies Overview</h5>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> 
+                            Total dependency relationships: ${Object.keys(data.dependencyGraph || {}).length}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

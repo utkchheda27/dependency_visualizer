@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dependency Graph - Spring Boot Analysis Tool</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        
+        .main-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 1rem 0;
+            min-height: 90vh;
+        }
+        
+        .header-section {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            color: white;
+            border-radius: 20px 20px 0 0;
+            padding: 1.5rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        #dependencyGraph {
+            width: 100%;
+            height: 70vh;
+            border-radius: 15px;
+            background: radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .node-tile {
+            position: absolute;
+            border-radius: 15px;
+            padding: 15px 20px;
+            color: white;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: grab;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            min-width: 120px;
+            text-align: center;
+            user-select: none;
+        }
+        
+        .node-tile:active {
+            cursor: grabbing;
+        }
+        
+        .node-tile:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+        
+        .node-controller {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-left: 4px solid #4f46e5;
+        }
+        
+        .node-service {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-left: 4px solid #ec4899;
+        }
+        
+        .node-repository {
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+            border-left: 4px solid #059669;
+        }
+        
+        .node-model {
+            background: linear-gradient(135deg, #fdbb2d 0%, #22c1c3 100%);
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .node-configuration {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            border-left: 4px solid #8b5cf6;
+        }
+        
+        .connection-line {
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .connection-animated {
+            stroke-dasharray: 5, 5;
+            animation: dash 2s linear infinite;
+        }
+        
+        @keyframes dash {
+            from {
+                stroke-dashoffset: 10;
+            }
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+        
+        .connection-gradient {
+            stroke: url(#connectionGradient);
+            stroke-width: 2;
+            opacity: 0.8;
+        }
+        
+        .connection-hover {
+            stroke-width: 4;
+            opacity: 1;
+            filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5));
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.8) 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+            z-index: 2000;
+            max-width: 250px;
+        }
+        
+        .controls-panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        
+        .controls-panel h5 {
+            color: white;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+        
+        .stats-panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: white;
+        }
+        
+        .btn-custom {
+            background: linear-gradient(45deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 25px;
+            color: white;
+            font-weight: 600;
+            padding: 10px 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-custom:hover {
+            background: linear-gradient(45deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.2));
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            color: white;
+        }
+        
+        .loading-spinner {
+            text-align: center;
+            padding: 3rem;
+            color: white;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+            color: white;
+            font-size: 12px;
+            font-weight: 500;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        
+        .floating-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.1;
+            animation: float 10s infinite linear;
+        }
+        
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) scale(0);
+            }
+            50% {
+                transform: translateY(50vh) scale(1);
+            }
+            100% {
+                transform: translateY(-10vh) scale(0);
+            }
+        }
+        
+        .node-pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            }
+            50% {
+                box-shadow: 0 15px 35px rgba(255, 255, 255, 0.1), 0 0 20px rgba(255, 255, 255, 0.1);
+            }
+            100% {
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            }
+        }
+        
+        .connection-path {
+            fill: none;
+            stroke-width: 2;
+            opacity: 0.7;
+            transition: all 0.3s ease;
+        }
+        
+        .connection-path:hover {
+            stroke-width: 4;
+            opacity: 1;
+        }
+        
+        .minimap {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 200px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        
+        .zoom-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .zoom-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="container">
+            <div class="main-container">
+                <div class="header-section">
+                    <h1><i class="fas fa-project-diagram"></i> Dependency Graph Visualization</h1>
+                    <p>Interactive visualization of component dependencies and relationships</p>
+                    <button class="btn btn-light btn-sm" onclick="window.location.href='/'">
+                        <i class="fas fa-home"></i> Back to Home
+                    </button>
+                    <button class="btn btn-light btn-sm" onclick="window.location.href='/analyzer'">
+                        <i class="fas fa-chart-line"></i> Analysis Dashboard
+                    </button>
+                </div>
+                
+                <div class="loading-spinner" id="loadingSpinner">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3">Loading dependency graph...</p>
+                </div>
+                
+                <div class="container p-4" id="graphContainer" style="display: none;">
+                    <!-- Floating particles background -->
+                    <div class="floating-particles" id="particles"></div>
+                    
+                    <div class="row">
+                        <div class="col-md-9">
+                            <div class="controls-panel">
+                                <h5><i class="fas fa-project-diagram"></i> Interactive Dependency Visualization</h5>
+                                <div id="dependencyGraph">
+                                    <!-- Zoom controls -->
+                                    <div class="zoom-controls">
+                                        <div class="zoom-btn" onclick="zoomIn()">
+                                            <i class="fas fa-plus"></i>
+                                        </div>
+                                        <div class="zoom-btn" onclick="zoomOut()">
+                                            <i class="fas fa-minus"></i>
+                                        </div>
+                                        <div class="zoom-btn" onclick="resetZoom()">
+                                            <i class="fas fa-home"></i>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Minimap -->
+                                    <div class="minimap" id="minimap"></div>
+                                    
+                                    <!-- SVG for connections -->
+                                    <svg id="connectionSvg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;">
+                                        <defs>
+                                            <linearGradient id="connectionGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                                                <stop offset="50%" style="stop-color:#f093fb;stop-opacity:0.8" />
+                                                <stop offset="100%" style="stop-color:#4ecdc4;stop-opacity:1" />
+                                            </linearGradient>
+                                            <filter id="glow">
+                                                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                                <feMerge> 
+                                                    <feMergeNode in="coloredBlur"/>
+                                                    <feMergeNode in="SourceGraphic"/>
+                                                </feMerge>
+                                            </filter>
+                                        </defs>
+                                    </svg>
+                                </div>
+                                <div class="legend">
+                                    <div class="legend-item">
+                                        <div class="legend-color" style="background: linear-gradient(45deg, #667eea, #764ba2);"></div>
+                                        <span>Controller</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="legend-color" style="background: linear-gradient(45deg, #f093fb, #f5576c);"></div>
+                                        <span>Service</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="legend-color" style="background: linear-gradient(45deg, #4ecdc4, #44a08d);"></div>
+                                        <span>Repository</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="legend-color" style="background: linear-gradient(45deg, #fdbb2d, #22c1c3);"></div>
+                                        <span>Model</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="legend-color" style="background: linear-gradient(45deg, #a8edea, #fed6e3);"></div>
+                                        <span>Configuration</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="stats-panel">
+                                <h5><i class="fas fa-info-circle"></i> Graph Statistics</h5>
+                                <div id="graphStats">
+                                    <!-- Stats will be populated here -->
+                                </div>
+                            </div>
+                            
+                            <div class="stats-panel">
+                                <h5><i class="fas fa-cogs"></i> Controls</h5>
+                                <button class="btn btn-custom btn-sm w-100 mb-2" onclick="resetLayout()">
+                                    <i class="fas fa-sync"></i> Reset Layout
+                                </button>
+                                <button class="btn btn-custom btn-sm w-100 mb-2" onclick="toggleAnimations()">
+                                    <i class="fas fa-play"></i> Toggle Animations
+                                </button>
+                                <button class="btn btn-custom btn-sm w-100 mb-2" onclick="arrangeInCircle()">
+                                    <i class="fas fa-circle"></i> Circle Layout
+                                </button>
+                                <button class="btn btn-custom btn-sm w-100" onclick="exportVisualization()">
+                                    <i class="fas fa-download"></i> Export PNG
+                                </button>
+                            </div>
+                            
+                            <div class="stats-panel">
+                                <h5><i class="fas fa-search"></i> Component Details</h5>
+                                <div id="selectedComponent">
+                                    <p class="text-white-50">Click on a tile to see details</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="tooltip" id="tooltip"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let analysisData = null;
+        let tiles = [];
+        let connections = [];
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        let currentScale = 1;
+        let animationsEnabled = true;
+        let selectedTile = null;
+        
+        window.onload = function() {
+            initializeParticles();
+            loadDependencyData();
+        };
+        
+        function initializeParticles() {
+            const particleContainer = document.getElementById('particles');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 10 + 's';
+                particle.style.animationDuration = (Math.random() * 10 + 5) + 's';
+                particleContainer.appendChild(particle);
+            }
+        }
+        
+        async function loadDependencyData() {
+            try {
+                console.log('Loading dependency data...');
+                const response = await fetch('/api/analyzer/analyze-self');
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                analysisData = await response.json();
+                console.log('Analysis data received:', analysisData);
+                console.log('Controllers:', analysisData.controllers);
+                console.log('Services:', analysisData.services);
+                console.log('Dependency Graph:', analysisData.dependencyGraph);
+                
+                createTileVisualization(analysisData);
+                document.getElementById('loadingSpinner').style.display = 'none';
+                document.getElementById('graphContainer').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading dependency data:', error);
+                document.getElementById('loadingSpinner').innerHTML = 
+                    '<div class="alert alert-danger text-white">Failed to load dependency data: ' + error.message + '</div>';
+            }
+        }
+        
+        function createTileVisualization(data) {
+            console.log('Creating tile visualization with data:', data);
+            const container = document.getElementById('dependencyGraph');
+            const containerRect = container.getBoundingClientRect();
+            console.log('Container dimensions:', containerRect);
+            
+            // Clear existing content except SVG and controls
+            const tilesToRemove = container.querySelectorAll('.node-tile');
+            tilesToRemove.forEach(tile => tile.remove());
+            
+            tiles = [];
+            connections = [];
+            
+            // Create nodes from all components
+            const allComponents = [];
+            const nodeTypes = [
+                { components: data.controllers || [], type: 'controller' },
+                { components: data.services || [], type: 'service' },
+                { components: data.repositories || [], type: 'repository' },
+                { components: data.models || [], type: 'model' },
+                { components: data.configurations || [], type: 'configuration' }
+            ];
+            
+            console.log('Node types data:', nodeTypes);
+            
+            nodeTypes.forEach(nodeType => {
+                nodeType.components.forEach(comp => {
+                    allComponents.push({
+                        id: comp.fullyQualifiedName || `${comp.packageName}.${comp.className}`,
+                        name: comp.className,
+                        type: nodeType.type,
+                        component: comp,
+                        dependencies: comp.dependencies || []
+                    });
+                });
+            });
+            
+            console.log('All components created:', allComponents);
+            
+            if (allComponents.length === 0) {
+                console.warn('No components found to visualize');
+                document.getElementById('dependencyGraph').innerHTML += 
+                    '<div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; text-align: center;"><h4>No Components Found</h4><p>The analyzer could not find any Spring components in the current project.</p></div>';
+                return;
+            }
+            
+            // Position tiles in a spiral layout
+            const centerX = containerRect.width / 2;
+            const centerY = containerRect.height / 2;
+            const radius = Math.min(containerRect.width, containerRect.height) / 4;
+            
+            console.log('Positioning tiles around center:', centerX, centerY, 'with radius:', radius);
+            
+            allComponents.forEach((comp, index) => {
+                const angle = (index / allComponents.length) * Math.PI * 2;
+                const spiralRadius = radius + (index * 10);
+                const x = centerX + Math.cos(angle) * spiralRadius;
+                const y = centerY + Math.sin(angle) * spiralRadius;
+                
+                console.log(`Creating tile for ${comp.name} at position (${x}, ${y})`);
+                createTile(comp, x, y, index);
+            });
+            
+            // Create connections
+            const dependencyGraph = data.dependencyGraph || {};
+            console.log('Creating connections from dependency graph:', dependencyGraph);
+            createConnections(dependencyGraph);
+            
+            // Update statistics
+            updateGraphStats(allComponents, connections);
+            
+            // Start animations
+            if (animationsEnabled) {
+                startTileAnimations();
+            }
+        }
+        
+        function createTile(component, x, y, index = 0) {
+            console.log('Creating tile for component:', component.name, 'at position:', x, y);
+            const container = document.getElementById('dependencyGraph');
+            const tile = document.createElement('div');
+            
+            tile.className = `node-tile node-${component.type}`;
+            tile.textContent = component.name;
+            tile.style.left = x + 'px';
+            tile.style.top = y + 'px';
+            tile.style.transform = 'translate(-50%, -50%) scale(0.8)';
+            tile.style.opacity = '0';
+            tile.style.transition = 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+            
+            // Add component data
+            tile.componentData = component;
+            
+            // Event listeners for dragging
+            tile.addEventListener('mousedown', startDrag);
+            tile.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectTile(tile);
+            });
+            
+            // Hover effects
+            tile.addEventListener('mouseenter', (e) => showTooltip(e, component));
+            tile.addEventListener('mouseleave', hideTooltip);
+            
+            console.log('Appending tile to container');
+            container.appendChild(tile);
+            tiles.push({
+                element: tile,
+                component: component,
+                x: x,
+                y: y
+            });
+            
+            // Add entrance animation
+            setTimeout(() => {
+                console.log('Animating tile entrance for:', component.name);
+                tile.style.opacity = '1';
+                tile.style.transform = 'translate(-50%, -50%) scale(1)';
+            }, index * 200 + 100); // Use index for staggered animation instead of random
+        }
+        
+        function startDrag(e) {
+            e.preventDefault();
+            isDragging = true;
+            const tile = e.target;
+            const rect = tile.getBoundingClientRect();
+            const containerRect = tile.parentElement.getBoundingClientRect();
+            
+            dragOffset.x = e.clientX - rect.left - rect.width/2;
+            dragOffset.y = e.clientY - rect.top - rect.height/2;
+            
+            tile.style.zIndex = '1001';
+            tile.classList.add('node-pulse');
+            
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDrag);
+        }
+        
+        function drag(e) {
+            if (!isDragging) return;
+            
+            const container = document.getElementById('dependencyGraph');
+            const containerRect = container.getBoundingClientRect();
+            const tile = document.querySelector('.node-pulse');
+            
+            if (tile) {
+                const x = e.clientX - containerRect.left - dragOffset.x;
+                const y = e.clientY - containerRect.top - dragOffset.y;
+                
+                tile.style.left = x + 'px';
+                tile.style.top = y + 'px';
+                
+                // Update tile position in tiles array
+                const tileData = tiles.find(t => t.element === tile);
+                if (tileData) {
+                    tileData.x = x;
+                    tileData.y = y;
+                }
+                
+                // Update connections
+                updateConnections();
+            }
+        }
+        
+        function stopDrag() {
+            isDragging = false;
+            const tile = document.querySelector('.node-pulse');
+            if (tile) {
+                tile.style.zIndex = '';
+                tile.classList.remove('node-pulse');
+            }
+            
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', stopDrag);
+        }
+        
+        function selectTile(tile) {
+            // Remove previous selection
+            document.querySelectorAll('.node-tile').forEach(t => {
+                t.classList.remove('node-pulse');
+                t.style.zIndex = '';
+            });
+            
+            // Select current tile
+            tile.classList.add('node-pulse');
+            tile.style.zIndex = '1000';
+            selectedTile = tile;
+            
+            // Show component details
+            showComponentDetails(tile.componentData);
+            
+            // Highlight related connections
+            highlightConnections(tile.componentData);
+        }
+        
+        function createConnections(dependencyGraph) {
+            const svg = document.getElementById('connectionSvg');
+            
+            // Clear existing connections
+            while (svg.children.length > 1) { // Keep defs
+                svg.removeChild(svg.lastChild);
+            }
+            
+            Object.entries(dependencyGraph).forEach(([sourceId, targets]) => {
+                targets.forEach(targetId => {
+                    const sourceTile = tiles.find(t => t.component.id === sourceId || t.component.name === sourceId);
+                    const targetTile = tiles.find(t => t.component.id === targetId || t.component.name === targetId || 
+                        (targetId.includes('.') && t.component.id.endsWith(targetId)));
+                    
+                    if (sourceTile && targetTile && sourceTile !== targetTile) {
+                        createConnection(sourceTile, targetTile, svg);
+                    }
+                });
+            });
+        }
+        
+        function createConnection(sourceTile, targetTile, svg) {
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.classList.add('connection-path', 'connection-animated');
+            
+            // Create curved path
+            updateConnectionPath(path, sourceTile, targetTile);
+            
+            path.style.stroke = 'url(#connectionGradient)';
+            path.style.strokeWidth = '2';
+            path.style.fill = 'none';
+            path.style.opacity = '0.6';
+            path.style.filter = 'url(#glow)';
+            
+            // Add hover effects
+            path.addEventListener('mouseenter', () => {
+                path.style.strokeWidth = '4';
+                path.style.opacity = '1';
+            });
+            
+            path.addEventListener('mouseleave', () => {
+                path.style.strokeWidth = '2';
+                path.style.opacity = '0.6';
+            });
+            
+            svg.appendChild(path);
+            connections.push({
+                path: path,
+                source: sourceTile,
+                target: targetTile
+            });
+        }
+        
+        function updateConnectionPath(path, sourceTile, targetTile) {
+            const sourceRect = sourceTile.element.getBoundingClientRect();
+            const targetRect = targetTile.element.getBoundingClientRect();
+            const containerRect = document.getElementById('dependencyGraph').getBoundingClientRect();
+            
+            const x1 = sourceTile.x;
+            const y1 = sourceTile.y;
+            const x2 = targetTile.x;
+            const y2 = targetTile.y;
+            
+            // Calculate control points for curved line
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            const cp1x = x1 + dx * 0.3;
+            const cp1y = y1 - distance * 0.2;
+            const cp2x = x2 - dx * 0.3;
+            const cp2y = y2 - distance * 0.2;
+            
+            const pathData = `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
+            path.setAttribute('d', pathData);
+        }
+        
+        function updateConnections() {
+            connections.forEach(conn => {
+                updateConnectionPath(conn.path, conn.source, conn.target);
+            });
+        }
+        
+        function highlightConnections(component) {
+            connections.forEach(conn => {
+                if (conn.source.component === component || conn.target.component === component) {
+                    conn.path.style.strokeWidth = '4';
+                    conn.path.style.opacity = '1';
+                    conn.path.style.stroke = '#ffffff';
+                } else {
+                    conn.path.style.strokeWidth = '2';
+                    conn.path.style.opacity = '0.3';
+                    conn.path.style.stroke = 'url(#connectionGradient)';
+                }
+            });
+        }
+        
+        function startTileAnimations() {
+            tiles.forEach((tile, index) => {
+                setTimeout(() => {
+                    tile.element.style.animation = 'pulse 3s infinite';
+                }, index * 200);
+            });
+        }
+        
+        function showTooltip(event, component) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.style.opacity = 1;
+            tooltip.style.left = (event.pageX + 15) + 'px';
+            tooltip.style.top = (event.pageY - 10) + 'px';
+            tooltip.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 8px;">${component.name}</div>
+                <div style="color: rgba(255,255,255,0.8); margin-bottom: 5px;">Type: ${component.type}</div>
+                <div style="color: rgba(255,255,255,0.8); margin-bottom: 5px;">Dependencies: ${component.dependencies.length}</div>
+                <div style="color: rgba(255,255,255,0.6); font-size: 11px;">Click to select • Drag to move</div>
+            `;
+        }
+        
+        function hideTooltip() {
+            document.getElementById('tooltip').style.opacity = 0;
+        }
+        
+        function showComponentDetails(component) {
+            const detailsHtml = `
+                <h6 style="color: white; margin-bottom: 15px;">${component.name}</h6>
+                <div class="mb-2">
+                    <span class="badge" style="background: linear-gradient(45deg, #667eea, #764ba2);">${component.type}</span>
+                </div>
+                <div class="mb-2" style="color: rgba(255,255,255,0.9);">
+                    <strong>Package:</strong><br>
+                    <small style="color: rgba(255,255,255,0.7);">${component.component.packageName}</small>
+                </div>
+                <div class="mb-2" style="color: rgba(255,255,255,0.9);">
+                    <strong>Methods:</strong> ${(component.component.methods || []).length}
+                </div>
+                <div class="mb-2" style="color: rgba(255,255,255,0.9);">
+                    <strong>Dependencies:</strong> ${component.dependencies.length}
+                </div>
+                ${component.dependencies.length > 0 ? 
+                    `<div class="mt-2">
+                        <small style="color: rgba(255,255,255,0.9);"><strong>Depends on:</strong></small>
+                        <ul class="list-unstyled mt-1" style="max-height: 120px; overflow-y: auto;">
+                            ${component.dependencies.map(dep => 
+                                `<li><small style="color: rgba(255,255,255,0.6);">• ${dep}</small></li>`
+                            ).join('')}
+                        </ul>
+                    </div>` : ''
+                }
+            `;
+            
+            document.getElementById('selectedComponent').innerHTML = detailsHtml;
+        }
+        
+        function updateGraphStats(nodes, links) {
+            const typeCount = {};
+            nodes.forEach(node => {
+                typeCount[node.type] = (typeCount[node.type] || 0) + 1;
+            });
+            
+            const statsHtml = `
+                <div class="mb-2" style="color: white;"><strong>Total Components:</strong> ${nodes.length}</div>
+                <div class="mb-2" style="color: white;"><strong>Total Connections:</strong> ${links.length}</div>
+                <hr style="border-color: rgba(255,255,255,0.2);">
+                ${Object.entries(typeCount).map(([type, count]) => 
+                    `<div class="mb-1" style="color: rgba(255,255,255,0.8);">${type.charAt(0).toUpperCase() + type.slice(1)}s: ${count}</div>`
+                ).join('')}
+            `;
+            
+            document.getElementById('graphStats').innerHTML = statsHtml;
+        }
+        
+        // Control functions
+        function resetLayout() {
+            if (analysisData) {
+                createTileVisualization(analysisData);
+            }
+        }
+        
+        function toggleAnimations() {
+            animationsEnabled = !animationsEnabled;
+            tiles.forEach(tile => {
+                if (animationsEnabled) {
+                    tile.element.style.animation = 'pulse 3s infinite';
+                } else {
+                    tile.element.style.animation = 'none';
+                }
+            });
+        }
+        
+        function arrangeInCircle() {
+            const container = document.getElementById('dependencyGraph');
+            const containerRect = container.getBoundingClientRect();
+            const centerX = containerRect.width / 2;
+            const centerY = containerRect.height / 2;
+            const radius = Math.min(containerRect.width, containerRect.height) / 3;
+            
+            tiles.forEach((tile, index) => {
+                const angle = (index / tiles.length) * Math.PI * 2;
+                const x = centerX + Math.cos(angle) * radius;
+                const y = centerY + Math.sin(angle) * radius;
+                
+                tile.element.style.transition = 'all 1s cubic-bezier(0.4, 0, 0.2, 1)';
+                tile.element.style.left = x + 'px';
+                tile.element.style.top = y + 'px';
+                
+                tile.x = x;
+                tile.y = y;
+                
+                setTimeout(() => {
+                    tile.element.style.transition = '';
+                }, 1000);
+            });
+            
+            setTimeout(updateConnections, 100);
+        }
+        
+        function zoomIn() {
+            currentScale = Math.min(currentScale * 1.2, 3);
+            applyZoom();
+        }
+        
+        function zoomOut() {
+            currentScale = Math.max(currentScale * 0.8, 0.3);
+            applyZoom();
+        }
+        
+        function resetZoom() {
+            currentScale = 1;
+            applyZoom();
+        }
+        
+        function applyZoom() {
+            const container = document.getElementById('dependencyGraph');
+            container.style.transform = `scale(${currentScale})`;
+            container.style.transformOrigin = 'center center';
+        }
+        
+        function exportVisualization() {
+            // Convert the visualization to canvas and download as PNG
+            html2canvas(document.getElementById('dependencyGraph')).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'dependency-visualization.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            }).catch(() => {
+                // Fallback: just alert the user
+                alert('Export feature requires html2canvas library. The visualization is ready for screenshot.');
+            });
+        }
+    </script>
+</body>
+</html>
