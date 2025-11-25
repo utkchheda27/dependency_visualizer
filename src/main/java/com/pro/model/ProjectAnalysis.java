@@ -18,6 +18,7 @@ public class ProjectAnalysis {
     private List<ComponentInfo> configurations;
     private Map<String, List<String>> dependencyGraph; // Component -> List of dependencies
     private Map<String, String> packageStructure;
+    private List<ModuleInfo> modules;
     private long analysisTimestamp;
 
     // Constructors
@@ -117,6 +118,14 @@ public class ProjectAnalysis {
 
     public void setPackageStructure(Map<String, String> packageStructure) {
         this.packageStructure = packageStructure;
+    }
+
+    public List<ModuleInfo> getModules() {
+        return modules;
+    }
+
+    public void setModules(List<ModuleInfo> modules) {
+        this.modules = modules;
     }
 
     public long getAnalysisTimestamp() {

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,278 +12,167 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        .main-container {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            margin: 2rem 0;
-            min-height: 80vh;
-        }
-        
-        .hero-section {
-            text-align: center;
-            padding: 3rem 2rem;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-            border-radius: 20px 20px 0 0;
-        }
-        
-        .hero-section h1 {
-            font-size: 3rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-        }
-        
-        .hero-section p {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            margin-bottom: 0;
-        }
-        
-        .feature-card {
-            background: white;
-            border-radius: 15px;
-            padding: 2rem;
-            margin: 1rem 0;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            border: none;
-        }
-        
-        .feature-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
-        }
-        
-        .feature-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 1rem;
-            font-size: 1.5rem;
-            color: white;
         }
-        
-        .icon-analysis { background: linear-gradient(45deg, #ff6b6b, #ee5a52); }
-        .icon-api { background: linear-gradient(45deg, #4ecdc4, #44a08d); }
-        .icon-dependency { background: linear-gradient(45deg, #45b7d1, #96c93d); }
-        .icon-visual { background: linear-gradient(45deg, #f093fb, #f5576c); }
-        
-        .btn-custom {
+
+        .landing-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            padding: 3rem;
+            width: 100%;
+            max-width: 700px;
+            text-align: center;
+        }
+
+        .logo-icon {
+            font-size: 4rem;
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1.5rem;
+        }
+
+        h1 {
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        .lead {
+            color: #666;
+            margin-bottom: 2.5rem;
+        }
+
+        .input-group-lg>.form-control {
+            border-radius: 10px 0 0 10px;
+            border: 2px solid #e9ecef;
+            border-right: none;
+            padding: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .input-group-lg>.form-control:focus {
+            border-color: #667eea;
+            box-shadow: none;
+        }
+
+        .input-group-lg>.btn {
+            border-radius: 0 10px 10px 0;
+            padding: 0 2rem;
+            font-weight: 600;
             background: linear-gradient(45deg, #667eea, #764ba2);
             border: none;
-            border-radius: 25px;
-            padding: 12px 30px;
-            color: white;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-custom:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
             color: white;
         }
-        
-        .stats-container {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 15px;
-            padding: 2rem;
+
+        .input-group-lg>.btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            color: #999;
             margin: 2rem 0;
         }
-        
-        .stat-item {
-            text-align: center;
-            padding: 1rem;
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid #e9ecef;
         }
-        
-        .stat-number {
-            font-size: 2.5rem;
-            font-weight: 700;
-            display: block;
+
+        .divider:not(:empty)::before {
+            margin-right: .5em;
         }
-        
-        .stat-label {
-            font-size: 0.9rem;
-            opacity: 0.8;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+
+        .divider:not(:empty)::after {
+            margin-left: .5em;
+        }
+
+        .btn-outline-custom {
+            color: #667eea;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            font-weight: 600;
+            padding: 0.8rem 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-outline-custom:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
         }
     </style>
 </head>
+
 <body>
-    <div class="container-fluid">
-        <div class="container">
-            <div class="main-container">
-                <div class="hero-section">
-                    <h1><i class="fas fa-code-branch"></i> Spring Boot Analyzer</h1>
-                    <p>Analyze, visualize, and understand your Spring Boot applications with ease</p>
-                </div>
-                
-                <div class="container p-4">
-                    <div class="row">
-                        <div class="col-md-6 col-lg-3">
-                            <div class="feature-card text-center">
-                                <div class="feature-icon icon-analysis">
-                                    <i class="fas fa-search"></i>
-                                </div>
-                                <h4>Project Analysis</h4>
-                                <p class="text-muted">Deep analysis of your Spring Boot project structure, components, and architecture</p>
-                                <a href="/analyzer" class="btn btn-custom btn-sm">Analyze Project</a>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-6 col-lg-3">
-                            <div class="feature-card text-center">
-                                <div class="feature-icon icon-api">
-                                    <i class="fas fa-network-wired"></i>
-                                </div>
-                                <h4>API Mapping</h4>
-                                <p class="text-muted">Discover all REST endpoints, HTTP methods, and request mappings</p>
-                                <a href="/analyzer" class="btn btn-custom btn-sm">View APIs</a>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-6 col-lg-3">
-                            <div class="feature-card text-center">
-                                <div class="feature-icon icon-dependency">
-                                    <i class="fas fa-project-diagram"></i>
-                                </div>
-                                <h4>Dependencies</h4>
-                                <p class="text-muted">Visualize component dependencies and service relationships</p>
-                                <a href="/dependencies" class="btn btn-custom btn-sm">View Graph</a>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-6 col-lg-3">
-                            <div class="feature-card text-center">
-                                <div class="feature-icon icon-visual">
-                                    <i class="fas fa-chart-line"></i>
-                                </div>
-                                <h4>Visual Reports</h4>
-                                <p class="text-muted">Interactive charts and diagrams for better understanding</p>
-                                <a href="/analyzer" class="btn btn-custom btn-sm">View Reports</a>
-                            </div>
-                        </div>
+    <div class="landing-card">
+        <i class="fas fa-project-diagram logo-icon"></i>
+        <h1>Spring Boot Analyzer</h1>
+        <p class="lead">Visualize dependencies, map APIs, and analyze architecture.</p>
+
+        <div class="mb-4 text-start">
+            <label for="projectPath" class="form-label fw-bold text-secondary ms-1">Project Path</label>
+            <div class="input-group input-group-lg">
+                <span class="input-group-text bg-white border-end-0 text-muted">
+                    <i class="fas fa-folder"></i>
+                </span>
+                <input type="text" class="form-control border-start-0 ps-0" id="projectPath"
+                    placeholder="C:\Path\To\Your\SpringBoot\Project">
+                <button class="btn" type="button" onclick="analyzeCustomProject()">Analyze</button>
+            </div>
+            <div class="form-text ms-1 mt-2">
+                <i class="fas fa-info-circle me-1"></i> Enter the absolute path to your project root (containing
+                pom.xml)
+            </div>
+        </div>
+
+        <div class="divider">OR</div>
+
+        <button class="btn btn-outline-custom w-100" onclick="analyzeSelf()">
+            <i class="fas fa-code me-2"></i> Analyze This Tool (Demo)
+        </button>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal fade" id="loadingModal" data-bs-backdrop="static" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
+                <div class="modal-body text-center p-5">
+                    <div class="spinner-border text-primary mb-4" role="status" style="width: 3rem; height: 3rem;">
                     </div>
-                    
-                    <div class="stats-container">
-                        <div class="row" id="statsContainer">
-                            <div class="col-md-3">
-                                <div class="stat-item">
-                                    <span class="stat-number" id="totalEndpoints">--</span>
-                                    <span class="stat-label">API Endpoints</span>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="stat-item">
-                                    <span class="stat-number" id="totalComponents">--</span>
-                                    <span class="stat-label">Components</span>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="stat-item">
-                                    <span class="stat-number" id="totalServices">--</span>
-                                    <span class="stat-label">Services</span>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="stat-item">
-                                    <span class="stat-number" id="totalControllers">--</span>
-                                    <span class="stat-label">Controllers</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="text-center mt-4">
-                        <h3>Quick Actions</h3>
-                        <div class="mt-3">
-                            <button class="btn btn-custom me-3" onclick="analyzeSelf()">
-                                <i class="fas fa-play"></i> Analyze Current Project
-                            </button>
-                            <button class="btn btn-custom" onclick="showCustomAnalysis()">
-                                <i class="fas fa-folder-open"></i> Analyze Custom Project
-                            </button>
-                        </div>
-                    </div>
+                    <h5 class="mb-2">Analyzing Project...</h5>
+                    <p class="text-muted mb-0">Parsing source code and building dependency graph.</p>
                 </div>
             </div>
         </div>
     </div>
-    
-    <!-- Custom Project Analysis Modal -->
-    <div class="modal fade" id="customAnalysisModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Analyze Custom Project</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="projectPath" class="form-label">Project Path</label>
-                        <input type="text" class="form-control" id="projectPath" placeholder="Enter absolute path to Spring Boot project">
-                        <div class="form-text">Enter the full path to the root directory of your Spring Boot project</div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-custom" onclick="analyzeCustomProject()">Analyze</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Load initial stats
-        window.onload = function() {
-            loadCurrentProjectStats();
-        };
-        
-        async function loadCurrentProjectStats() {
-            try {
-                const response = await fetch('/api/analyzer/analyze-self');
-                const data = await response.json();
-                
-                document.getElementById('totalEndpoints').textContent = data.totalEndpoints || 0;
-                document.getElementById('totalComponents').textContent = data.totalComponents || 0;
-                document.getElementById('totalServices').textContent = (data.services || []).length;
-                document.getElementById('totalControllers').textContent = (data.controllers || []).length;
-            } catch (error) {
-                console.error('Error loading stats:', error);
-                document.getElementById('totalEndpoints').textContent = '--';
-                document.getElementById('totalComponents').textContent = '--';
-                document.getElementById('totalServices').textContent = '--';
-                document.getElementById('totalControllers').textContent = '--';
-            }
-        }
-        
         function analyzeSelf() {
             window.location.href = '/analyzer?self=true';
         }
-        
-        function showCustomAnalysis() {
-            new bootstrap.Modal(document.getElementById('customAnalysisModal')).show();
-        }
-        
+
         async function analyzeCustomProject() {
             const projectPath = document.getElementById('projectPath').value.trim();
             if (!projectPath) {
                 alert('Please enter a valid project path');
                 return;
             }
-            
+
+            const modal = new bootstrap.Modal(document.getElementById('loadingModal'));
+            modal.show();
+
             try {
                 const response = await fetch('/api/analyzer/analyze', {
                     method: 'POST',
@@ -291,19 +181,30 @@
                     },
                     body: JSON.stringify({ projectPath: projectPath })
                 });
-                
+
                 if (response.ok) {
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('customAnalysisModal'));
-                    modal.hide();
-                    window.location.href = `/analyzer?path=${encodeURIComponent(projectPath)}`;
+                    // Add a small delay to ensure the user sees the loading state
+                    setTimeout(() => {
+                        window.location.href = `/analyzer?path=${encodeURIComponent(projectPath)}`;
+                    }, 500);
                 } else {
                     const error = await response.json();
+                    modal.hide();
                     alert('Error: ' + (error.message || 'Failed to analyze project'));
                 }
             } catch (error) {
+                modal.hide();
                 alert('Error: ' + error.message);
             }
         }
+
+        // Allow Enter key to submit
+        document.getElementById('projectPath').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                analyzeCustomProject();
+            }
+        });
     </script>
 </body>
+
 </html>

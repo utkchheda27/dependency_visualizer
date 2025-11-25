@@ -10,6 +10,7 @@ public class ComponentInfo {
     private String packageName;
     private String componentType; // Service, Repository, Component, Controller
     private List<String> annotations;
+    private List<String> implementedInterfaces;
     private List<String> methods;
     private List<String> dependencies; // Other components this depends on
     private List<String> usedBy; // Components that use this component
@@ -56,6 +57,14 @@ public class ComponentInfo {
 
     public void setAnnotations(List<String> annotations) {
         this.annotations = annotations;
+    }
+
+    public List<String> getImplementedInterfaces() {
+        return implementedInterfaces;
+    }
+
+    public void setImplementedInterfaces(List<String> implementedInterfaces) {
+        this.implementedInterfaces = implementedInterfaces;
     }
 
     public List<String> getMethods() {

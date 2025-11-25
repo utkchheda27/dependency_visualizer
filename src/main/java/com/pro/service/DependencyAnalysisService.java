@@ -25,8 +25,9 @@ public class DependencyAnalysisService {
             allComponents.addAll(analysis.getServices());
         if (analysis.getRepositories() != null)
             allComponents.addAll(analysis.getRepositories());
-        if (analysis.getModels() != null)
-            allComponents.addAll(analysis.getModels());
+        // Exclude models from dependency graph visualization
+        // if (analysis.getModels() != null)
+        //     allComponents.addAll(analysis.getModels());
         if (analysis.getConfigurations() != null)
             allComponents.addAll(analysis.getConfigurations());
 

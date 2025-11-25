@@ -11,9 +11,12 @@ import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.pro.model.ApiEndpoint;
 import com.pro.model.ComponentInfo;
 import com.pro.model.ProjectAnalysis;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -27,25 +30,39 @@ import java.util.stream.Stream;
 @Service
 public class SpringBootAnalyzerService {
 
+    private static final Logger logger = LoggerFactory.getLogger(SpringBootAnalyzerService.class);
+
     private JavaParser javaParser;
     private DependencyAnalysisService dependencyAnalysisService;
+    private PomAnalysisService pomAnalysisService;
 
-    public SpringBootAnalyzerService(DependencyAnalysisService dependencyAnalysisService) {
+    public SpringBootAnalyzerService(DependencyAnalysisService dependencyAnalysisService,
+            PomAnalysisService pomAnalysisService) {
         this.javaParser = new JavaParser();
         this.dependencyAnalysisService = dependencyAnalysisService;
+        this.pomAnalysisService = pomAnalysisService;
     }
 
     /**
      * Analyzes a Spring Boot project and returns comprehensive analysis
      */
     public ProjectAnalysis analyzeProject(String projectPath) {
-        ProjectAnalysis analysis = new ProjectAnalysis();
-        analysis.setProjectPath(projectPath);
-        analysis.setProjectName(extractProjectName(projectPath));
+        logger.info("Starting analysis for project at: {}", projectPath);
+        ProjectAnalysis analysis = new ProjectAnalysis(extractProjectName(projectPath), projectPath);
 
         try {
+            // Analyze POM files
+            logger.info("Scanning POM files...");
+            analysis.setModules(pomAnalysisService.scanPomFiles(projectPath));
+            logger.info("Found {} modules", analysis.getModules() != null ? analysis.getModules().size() : 0);
+
             // Find all Java files
             List<File> javaFiles = findJavaFiles(projectPath);
+            logger.info("Found {} Java files to analyze", javaFiles.size());
+
+            if (javaFiles.isEmpty()) {
+                logger.warn("No Java files found in project path: {}", projectPath);
+            }
 
             // Initialize lists
             List<ApiEndpoint> endpoints = new ArrayList<>();
@@ -58,8 +75,13 @@ public class SpringBootAnalyzerService {
 
             // Analyze each Java file
             for (File javaFile : javaFiles) {
-                analyzeJavaFile(javaFile, analysis, endpoints, controllers, services, repositories, models,
-                        configurations, dependencyGraph);
+                logger.debug("Analyzing file: {}", javaFile.getName());
+                try {
+                    analyzeJavaFile(javaFile, analysis, endpoints, controllers, services, repositories, models,
+                            configurations, dependencyGraph);
+                } catch (Exception e) {
+                    logger.error("Error analyzing file {}: {}", javaFile.getName(), e.getMessage());
+                }
             }
 
             // Set results
@@ -72,16 +94,25 @@ public class SpringBootAnalyzerService {
             analysis.setDependencyGraph(dependencyGraph);
             analysis.setAnalysisTimestamp(System.currentTimeMillis());
 
+            logger.info("Analysis summary: {} controllers, {} services, {} repositories, {} models, {} configurations",
+                    controllers.size(), services.size(), repositories.size(), models.size(), configurations.size());
+
             // Build package structure
             analysis.setPackageStructure(buildPackageStructure(javaFiles));
 
             // Enhance dependency analysis
+            logger.info("Enhancing dependency analysis...");
             dependencyAnalysisService.enhanceDependencyAnalysis(analysis);
 
+            logger.info("Dependency graph size: {}",
+                    analysis.getDependencyGraph() != null ? analysis.getDependencyGraph().size() : 0);
+
         } catch (IOException e) {
+            logger.error("Error analyzing project: {}", e.getMessage(), e);
             throw new RuntimeException("Error analyzing project: " + e.getMessage(), e);
         }
 
+        logger.info("Analysis completed successfully");
         return analysis;
     }
 
@@ -122,6 +153,7 @@ public class SpringBootAnalyzerService {
                     String packageName = cu.getPackageDeclaration().map(pd -> pd.getNameAsString()).orElse("");
                     String className = cu.getPrimaryTypeName().orElse("Unknown");
                     analysis.setMainClass(packageName + "." + className);
+                    logger.info("Found main application class: {}", analysis.getMainClass());
                 }
 
                 // Analyze classes in the file
@@ -129,7 +161,7 @@ public class SpringBootAnalyzerService {
                         configurations, dependencyGraph), null);
             }
         } catch (Exception e) {
-            System.err.println("Error parsing file: " + javaFile.getAbsolutePath() + " - " + e.getMessage());
+            logger.error("Error parsing file {}: {}", javaFile.getAbsolutePath(), e.getMessage());
         }
     }
 
@@ -185,6 +217,7 @@ public class SpringBootAnalyzerService {
             component.setAnnotations(extractAnnotations(n));
             component.setMethods(extractMethods(n));
             component.setDependencies(extractDependencies(n));
+            component.setImplementedInterfaces(extractImplementedInterfaces(n));
 
             // Categorize the component
             String componentType = component.getComponentType();
@@ -202,6 +235,11 @@ public class SpringBootAnalyzerService {
 
             // Add to dependency graph
             dependencyGraph.put(component.getFullyQualifiedName(), component.getDependencies());
+
+            if (!component.getDependencies().isEmpty()) {
+                logger.debug("Component {} has dependencies: {}", component.getClassName(),
+                        component.getDependencies());
+            }
         }
     }
 
@@ -241,6 +279,17 @@ public class SpringBootAnalyzerService {
     }
 
     /**
+     * Extracts implemented interfaces from a class
+     */
+    private static List<String> extractImplementedInterfaces(ClassOrInterfaceDeclaration clazz) {
+        List<String> interfaces = new ArrayList<>();
+        for (ClassOrInterfaceType implementedType : clazz.getImplementedTypes()) {
+            interfaces.add(implementedType.getNameAsString());
+        }
+        return interfaces;
+    }
+
+    /**
      * Extracts method names from a class
      */
     private static List<String> extractMethods(ClassOrInterfaceDeclaration clazz) {
@@ -256,12 +305,22 @@ public class SpringBootAnalyzerService {
      */
     private static List<String> extractDependencies(ClassOrInterfaceDeclaration clazz) {
         List<String> dependencies = new ArrayList<>();
+        List<String> annotations = extractAnnotations(clazz);
+        boolean hasLombokRequiredArgs = annotations.contains("RequiredArgsConstructor")
+                || annotations.contains("AllArgsConstructor");
 
         for (FieldDeclaration field : clazz.getFields()) {
             boolean isInjected = field.getAnnotations().stream()
                     .anyMatch(annotation -> annotation.getNameAsString().equals("Autowired") ||
                             annotation.getNameAsString().equals("Inject") ||
                             annotation.getNameAsString().equals("Resource"));
+
+            // Check for constructor injection via Lombok or final fields in Spring
+            // components
+            boolean isFinal = field.isFinal();
+            if (!isInjected && hasLombokRequiredArgs && isFinal) {
+                isInjected = true;
+            }
 
             if (isInjected) {
                 String fieldType = field.getElementType().asString();
@@ -447,7 +506,7 @@ public class SpringBootAnalyzerService {
                     packageStructure.put(packageName + "." + className, packageName);
                 }
             } catch (Exception e) {
-                System.err.println("Error processing file for package structure: " + javaFile.getAbsolutePath());
+                logger.warn("Error processing file for package structure: {}", javaFile.getAbsolutePath());
             }
         }
 
