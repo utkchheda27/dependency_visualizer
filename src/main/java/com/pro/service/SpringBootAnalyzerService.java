@@ -35,12 +35,14 @@ public class SpringBootAnalyzerService {
     private JavaParser javaParser;
     private DependencyAnalysisService dependencyAnalysisService;
     private PomAnalysisService pomAnalysisService;
+    private ApiDependencyParser apiDependencyParser;
 
     public SpringBootAnalyzerService(DependencyAnalysisService dependencyAnalysisService,
-            PomAnalysisService pomAnalysisService) {
+            PomAnalysisService pomAnalysisService, ApiDependencyParser apiDependencyParser) {
         this.javaParser = new JavaParser();
         this.dependencyAnalysisService = dependencyAnalysisService;
         this.pomAnalysisService = pomAnalysisService;
+        this.apiDependencyParser = apiDependencyParser;
     }
 
     /**
@@ -71,6 +73,7 @@ public class SpringBootAnalyzerService {
             List<ComponentInfo> repositories = new ArrayList<>();
             List<ComponentInfo> models = new ArrayList<>();
             List<ComponentInfo> configurations = new ArrayList<>();
+            List<ComponentInfo> externalDependencies = new ArrayList<>();
             Map<String, List<String>> dependencyGraph = new HashMap<>();
 
             // Analyze each Java file
@@ -78,7 +81,7 @@ public class SpringBootAnalyzerService {
                 logger.debug("Analyzing file: {}", javaFile.getName());
                 try {
                     analyzeJavaFile(javaFile, analysis, endpoints, controllers, services, repositories, models,
-                            configurations, dependencyGraph);
+                            configurations, externalDependencies, dependencyGraph);
                 } catch (Exception e) {
                     logger.error("Error analyzing file {}: {}", javaFile.getName(), e.getMessage());
                 }
@@ -91,6 +94,7 @@ public class SpringBootAnalyzerService {
             analysis.setRepositories(repositories);
             analysis.setModels(models);
             analysis.setConfigurations(configurations);
+            analysis.setExternalDependencies(externalDependencies);
             analysis.setDependencyGraph(dependencyGraph);
             analysis.setAnalysisTimestamp(System.currentTimeMillis());
 
@@ -140,6 +144,7 @@ public class SpringBootAnalyzerService {
             List<ApiEndpoint> endpoints, List<ComponentInfo> controllers,
             List<ComponentInfo> services, List<ComponentInfo> repositories,
             List<ComponentInfo> models, List<ComponentInfo> configurations,
+            List<ComponentInfo> externalDependencies,
             Map<String, List<String>> dependencyGraph) {
 
         try {
@@ -158,7 +163,7 @@ public class SpringBootAnalyzerService {
 
                 // Analyze classes in the file
                 cu.accept(new ClassVisitor(javaFile, endpoints, controllers, services, repositories, models,
-                        configurations, dependencyGraph), null);
+                        configurations, externalDependencies, dependencyGraph, apiDependencyParser), null);
             }
         } catch (Exception e) {
             logger.error("Error parsing file {}: {}", javaFile.getAbsolutePath(), e.getMessage());
@@ -186,12 +191,16 @@ public class SpringBootAnalyzerService {
         private final List<ComponentInfo> repositories;
         private final List<ComponentInfo> models;
         private final List<ComponentInfo> configurations;
+        private final List<ComponentInfo> externalDependencies;
         private final Map<String, List<String>> dependencyGraph;
+        private final ApiDependencyParser apiDependencyParser;
 
         public ClassVisitor(File javaFile, List<ApiEndpoint> endpoints, List<ComponentInfo> controllers,
                 List<ComponentInfo> services, List<ComponentInfo> repositories,
                 List<ComponentInfo> models, List<ComponentInfo> configurations,
-                Map<String, List<String>> dependencyGraph) {
+                List<ComponentInfo> externalDependencies,
+                Map<String, List<String>> dependencyGraph,
+                ApiDependencyParser apiDependencyParser) {
             this.javaFile = javaFile;
             this.endpoints = endpoints;
             this.controllers = controllers;
@@ -199,7 +208,9 @@ public class SpringBootAnalyzerService {
             this.repositories = repositories;
             this.models = models;
             this.configurations = configurations;
+            this.externalDependencies = externalDependencies;
             this.dependencyGraph = dependencyGraph;
+            this.apiDependencyParser = apiDependencyParser;
         }
 
         @Override
@@ -239,6 +250,29 @@ public class SpringBootAnalyzerService {
             if (!component.getDependencies().isEmpty()) {
                 logger.debug("Component {} has dependencies: {}", component.getClassName(),
                         component.getDependencies());
+            }
+
+            // Detect external dependencies
+            List<ApiDependencyParser.Dependency> externalDeps = apiDependencyParser.parse(n.findCompilationUnit().get(),
+                    className);
+            for (ApiDependencyParser.Dependency dep : externalDeps) {
+                // Create a virtual component for the external service
+                String externalId = "EXTERNAL:" + dep.target;
+                ComponentInfo externalComp = new ComponentInfo(dep.target, "external", "External");
+                externalComp.setFullyQualifiedName(externalId);
+
+                // Check if we already have this external dependency
+                boolean exists = externalDependencies.stream()
+                        .anyMatch(c -> c.getFullyQualifiedName().equals(externalId));
+
+                if (!exists) {
+                    externalDependencies.add(externalComp);
+                }
+
+                // Add dependency from current component to external component
+                List<String> deps = dependencyGraph.getOrDefault(component.getFullyQualifiedName(), new ArrayList<>());
+                deps.add(externalId);
+                dependencyGraph.put(component.getFullyQualifiedName(), deps);
             }
         }
     }

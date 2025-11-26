@@ -15,6 +15,7 @@ public class ComponentInfo {
     private List<String> dependencies; // Other components this depends on
     private List<String> usedBy; // Components that use this component
     private String filePath;
+    private String fullyQualifiedName;
 
     // Constructors
     public ComponentInfo() {
@@ -100,7 +101,14 @@ public class ComponentInfo {
     }
 
     public String getFullyQualifiedName() {
+        if (fullyQualifiedName != null) {
+            return fullyQualifiedName;
+        }
         return packageName + "." + className;
+    }
+
+    public void setFullyQualifiedName(String fullyQualifiedName) {
+        this.fullyQualifiedName = fullyQualifiedName;
     }
 
     @Override

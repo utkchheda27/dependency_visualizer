@@ -21,6 +21,8 @@ public class ProjectAnalysis {
     private List<ModuleInfo> modules;
     private long analysisTimestamp;
 
+    private List<ComponentInfo> externalDependencies;
+
     // Constructors
     public ProjectAnalysis() {
     }
@@ -104,6 +106,14 @@ public class ProjectAnalysis {
         this.configurations = configurations;
     }
 
+    public List<ComponentInfo> getExternalDependencies() {
+        return externalDependencies;
+    }
+
+    public void setExternalDependencies(List<ComponentInfo> externalDependencies) {
+        this.externalDependencies = externalDependencies;
+    }
+
     public Map<String, List<String>> getDependencyGraph() {
         return dependencyGraph;
     }
@@ -153,6 +163,8 @@ public class ProjectAnalysis {
             total += models.size();
         if (configurations != null)
             total += configurations.size();
+        if (externalDependencies != null)
+            total += externalDependencies.size();
         return total;
     }
 

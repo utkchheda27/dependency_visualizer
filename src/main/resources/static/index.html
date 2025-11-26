@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Dependency Visualizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
+</head>
+
+<body>
+
+    <div class="container">
+        <header>
+            <h1>API Dependency Visualizer</h1>
+            <p>Analyze and visualize microservice dependencies instantly.</p>
+        </header>
+
+        <div class="card input-card">
+            <form id="scanForm">
+                <div class="input-group">
+                    <label for="pathInput">Repository Path</label>
+                    <input type="text" id="pathInput" placeholder="C:\Users\Name\Projects\MyRepo" required>
+                </div>
+                <button type="submit" id="scanBtn">
+                    <span id="btnText">Generate Graph</span>
+                    <div class="spinner" id="btnSpinner"></div>
+                </button>
+            </form>
+        </div>
+
+        <div class="card graph-card">
+            <div class="graph-header">
+                <h2>Dependency Graph</h2>
+                <div class="controls">
+                    <button id="layoutBtn">Reset Layout</button>
+                    <button id="exportBtn">Export Image</button>
+                </div>
+            </div>
+            <div id="cy"></div>
+            <div id="statusMsg">Enter a path to start scanning...</div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
